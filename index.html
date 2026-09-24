@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐤 Flappy IA - Por Johana Pushaina</title>
+<style>
+  :root {
+    --cyan: #22d3ee; --violet: #7c3aed; --green: #22c55e; --yellow: #facc15; --orange: #f97316; --red: #ef4444;
+    --bg: #0f0c29; --bg2: #302b63;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif; }
+  html, body { height: 100%; overflow: hidden; background: linear-gradient(135deg, var(--bg), var(--bg2)); color: #fff; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; padding: 10px; }
+
+  .card-box {
+    background: rgba(20, 18, 40, 0.94); border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 24px; padding: 22px; max-width: 540px; width: 100%; text-align: center;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+  h1 { font-size: 1.8rem; margin-bottom: 4px; color: var(--yellow); text-shadow: 0 2px 8px rgba(250,204,21,0.4); }
+  .author-tag { font-size: 0.95rem; color: var(--cyan); font-weight: 700; margin-bottom: 12px; letter-spacing: 0.5px; }
+  
+  p.sub { font-size: .92rem; color: #d1d5db; margin-bottom: 16px; line-height: 1.4; }
+
+  #playerName {
+    width: 100%; padding: 12px 16px; border-radius: 14px; font-size: 1rem; outline: none;
+    background: rgba(255,255,255,.15); color: #fff; border: 2px solid rgba(255,255,255,.3);
+    max-width: 280px; text-align: center; margin-bottom: 16px; font-weight: 600;
+  }
+  #playerName:focus { border-color: var(--cyan); box-shadow: 0 0 12px rgba(34,211,238,0.5); }
+
+  .btn {
+    cursor: pointer; border: none; border-radius: 16px; padding: 12px 24px; font-weight: 800;
+    font-size: 1.05rem; color: #fff; transition: all .18s ease; touch-action: manipulation;
+  }
+  .btn:hover { transform: translateY(-3px) scale(1.02); filter: brightness(1.15); }
+  .btn:active { transform: scale(.95); }
+  .btn.primary { background: linear-gradient(135deg, #ec4899, var(--violet)); box-shadow: 0 6px 20px rgba(236,72,153,.4); }
+  .btn.secondary { background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.3); }
+
+  #gameWrap { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 480px; }
+  #canvasWrap { position: relative; width: 100%; border-radius: 20px; overflow: hidden; border: 3px solid rgba(255,255,255,.25); background: #0f0c29; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+  canvas { width: 100%; height: auto; display: block; cursor: pointer; }
+
+  .hud {
+    display: flex; justify-content: space-between; align-items: center; width: 100%;
+    padding: 10px 18px; background: rgba(0,0,0,.6); border-radius: 16px; margin-bottom: 10px;
+    font-weight: 800; font-size: 1rem; border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* MODALES Y OVERLAYS */
+  #gateOverlay, #endOverlay {
+    position: fixed; inset: 0; background: rgba(4,4,20,.88); display: none; z-index: 50;
+    align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(8px);
+  }
+  #gateOverlay.show, #endOverlay.show { display: flex; }
+
+  .diff-badge {
+    display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: .9rem; font-weight: 800; margin-bottom: 12px;
+  }
+  .diff-badge.facil { background: rgba(34,197,94,0.25); color: #4ade80; border: 2px solid #4ade80; }
+  .diff-badge.media { background: rgba(249,115,22,0.25); color: #fb923c; border: 2px solid #fb923c; }
+  .diff-badge.dificil { background: rgba(239,68,68,0.25); color: #f87171; border: 2px solid #f87171; }
+
+  .gate-quest { font-size: 1.1rem; color: var(--yellow); font-weight: 800; margin-bottom: 14px; line-height: 1.4; text-align: left; }
+  .opts { display: grid; gap: 10px; width: 100%; }
+  .opt {
+    display: flex; align-items: center; width: 100%; padding: 12px 16px; border-radius: 14px;
+    border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); cursor: pointer;
+    font-size: .95rem; font-weight: 600; transition: .2s; color: #fff; text-align: left; line-height: 1.3;
+  }
+  .opt:hover:not(:disabled) { background: rgba(255,255,255,.25); border-color: var(--cyan); transform: translateX(4px); }
+  .opt.correct { background: linear-gradient(135deg, #22c55e, #15803d) !important; border-color: #4ade80 !important; }
+  .opt.wrong { background: linear-gradient(135deg, #ef4444, #b91c1c) !important; border-color: #f87171 !important; }
+
+  .gate-fb {
+    margin-top: 14px; font-size: .9rem; line-height: 1.4; text-align: left;
+    background: rgba(255,255,255,.08); padding: 12px 16px; border-radius: 12px; border-left: 5px solid var(--cyan);
+  }
+
+  #endScore { font-size: 3.5rem; font-weight: 900; color: var(--yellow); text-shadow: 0 0 15px rgba(250,204,21,0.5); }
+</style>
+</head>
+<body>
+
+<!-- PANTALLA INICIAL -->
+<div id="startScreen" class="card-box">
+  <h1>🐤 Flappy IA: Aventura Digital 🤖</h1>
+  <div class="author-tag">✨ Creado por: Johana Pushaina ✨</div>
+  
+  <p class="sub">¡Aprende y diviértete sin importar tu edad!<br>
+  ✨ Cada obstáculo = <b>1 Punto</b><br>
+  ❤️ Tienes <b>3 Vidas</b> | 💡 Si chocas, responde trivia para sumar +25 pts.<br>
+  💖 ¡Responde 2 bien seguidas y gana <b>1 Vida Extra</b>!</p>
+  <input id="playerName" maxlength="15" placeholder="Ingresa tu Nombre" autocomplete="off">
+  <div>
+    <button class="btn primary" id="btnStart">🎮 ¡Empezar a Jugar!</button>
+  </div>
+</div>
+
+<!-- CONTENEDOR DEL JUEGO -->
+<div id="gameWrap">
+  <div class="hud">
+    <span>Vidas: <span id="hudLives">❤️❤️❤️</span></span>
+    <span style="color:var(--cyan)">Puntos: <span id="hudScore" style="color:var(--yellow)">0</span></span>
+  </div>
+  <div id="canvasWrap">
+    <canvas id="cv" width="400" height="520"></canvas>
+  </div>
+</div>
+
+<!-- OVERLAY PREGUNTAS -->
+<div id="gateOverlay">
+  <div class="card-box">
+    <div id="diffBadge" class="diff-badge facil">🟢 Pregunta Divertida</div>
+    <div id="gateQuest" class="gate-quest"></div>
+    <div id="gateOpts" class="opts"></div>
+    <div id="gateResult" class="gate-fb" style="display:none;"></div>
+    <div style="margin-top:16px; text-align:right;">
+      <button class="btn primary" id="gateNext" style="display:none;">Continuar ➔</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY FINAL -->
+<div id="endOverlay">
+  <div class="card-box">
+    <h2>🎉 ¡Gran Trabajo! 🎉</h2>
+    <div id="endScore">0</div>
+    <p id="endRank" style="color:var(--green); font-weight:800; font-size: 1.1rem; margin-top:6px;">🏆 Campeón Digital</p>
+    <div style="font-size: 0.85rem; color: #a5b4fc; margin-top: 8px;">Juego diseñado por <b>Johana Pushaina</b></div>
+    <div style="display:flex; gap:12px; margin-top:18px;">
+      <button class="btn primary" id="btnAgain" style="flex:1;">🔄 Jugar de Nuevo</button>
+      <button class="btn secondary" id="btnHome" style="flex:1;">🏠 Inicio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ===================== BANCO DE PREGUNTAS ===================== */
+const RAW_QUESTIONS = {
+  facil: [
+    {
+      q: "📱 ¿Qué debemos hacer antes de compartir una noticia en internet?",
+      o: [
+        { t: "Verificar si la información es real y verdadera", ok: true },
+        { t: "Compartirla inmediatamente con todos sin leerla", ok: false },
+        { t: "Inventarle más cosas para que sea divertida", ok: false }
+      ],
+      whyOK: "¡Muy bien! Comprobar las noticias ayuda a que internet sea un lugar seguro sin mentiras.",
+      whyBAD: "¡Cuidado! Compartir cosas sin verificar puede asustar o engañar a las personas."
+    },
+    {
+      q: "🤝 ¿Cómo debemos tratar a los demás en redes sociales y juegos?",
+      o: [
+        { t: "Con respeto, amabilidad y empatía", ok: true },
+        { t: "Diciendo cosas feas si nos hacemos pasar por anónimos", ok: false },
+        { t: "Escribiendo solo con mayúsculas y gritando", ok: false }
+      ],
+      whyOK: "¡Excelente! El respeto crea comunidades sanas e integradoras.",
+      whyBAD: "Tratar mal a otros causa daño y no construye una buena convivencia digital."
+    }
+  ],
+  media: [
+    {
+      q: "🔐 ¿Cuál es la forma más segura de cuidar tus contraseñas?",
+      o: [
+        { t: "Usar claves con números, letras y no compartirlas", ok: true },
+        { t: "Escribir '123456' en todas tus cuentas", ok: false },
+        { t: "Pasársela a desconocidos en los juegos en línea", ok: false }
+      ],
+      whyOK: "¡Perfecto! Las contraseñas seguras protegen tus fotos y datos personales.",
+      whyBAD: "Las contraseñas simples o compartidas permiten que personas no autorizadas entren a tus cuentas."
+    },
+    {
+      q: "🤖 ¿Qué es la Inteligencia Artificial (IA)?",
+      o: [
+        { t: "Programas diseñados para ayudar a los humanos a resolver tareas", ok: true },
+        { t: "Robots mágicos que sienten emociones como las personas", ok: false },
+        { t: "Un tipo de pantalla brillante para televisores", ok: false }
+      ],
+      whyOK: "¡Exacto! La IA es una herramienta potente creada por humanos para facilitarnos tareas.",
+      whyBAD: "Las IAs son programas informáticos avanzados, no tienen sentimientos ni magia."
+    }
+  ],
+  dificil: [
+    {
+      q: "🌐 ¿Qué significa el concepto de 'Huella Digital'?",
+      o: [
+        { t: "El registro de todo lo que hacemos, buscamos y publicamos en internet", ok: true },
+        { t: "Limpiar la pantalla de la tablet cuando está sucia", ok: false },
+        { t: "Un tipo de dibujo animado sobre computadoras", ok: false }
+      ],
+      whyOK: "¡Impresionante! Todo lo que subes a internet deja una marca permanente.",
+      whyBAD: "La huella digital es tu reputación e historial en internet, no una marca física."
+    }
+  ]
+};
+
+function clonePools() { return JSON.parse(JSON.stringify(RAW_QUESTIONS)); }
+let activePools = clonePools();
+
+/* ===================== MOTOR Y PARTÍCULAS ===================== */
+const CV = document.getElementById('cv');
+const ctx = CV.getContext('2d');
+
+let bird = { x: 60, y: 200, vy: 0, gravity: 0.38, jump: -6.5, size: 20 };
+let pipes = [];
+let particles = [];
+let popups = [];
+let score = 0;
+let lives = 3;
+let streak = 0;
+let consecutiveCorrect = 0;
+let frame = 0;
+let gameState = 'START';
+
+function addParticles(x, y, color, count = 8) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      radius: Math.random() * 4 + 2,
+      color,
+      life: 25
+    });
+  }
+}
+
+function addPopup(text, x, y, color) {
+  popups.push({ text, x, y, color, opacity: 1, vy: -1.5 });
+}
+
+function playSound(freq, type, duration) {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch(e){}
+}
+
+function init() {
+  document.getElementById('btnStart').onclick = startGame;
+  document.getElementById('btnAgain').onclick = startGame;
+  document.getElementById('btnHome').onclick = () => {
+    document.getElementById('endOverlay').classList.remove('show');
+    document.getElementById('gameWrap').style.display = 'none';
+    document.getElementById('startScreen').style.display = 'block';
+  };
+
+  const flap = () => {
+    if (gameState === 'PLAYING') {
+      bird.vy = bird.jump;
+      addParticles(bird.x, bird.y + 10, '#22d3ee', 4);
+      playSound(450, 'sine', 0.08);
+    }
+  };
+
+  window.addEventListener('keydown', (e) => { if(e.code === 'Space') flap(); });
+  CV.addEventListener('mousedown', flap);
+  CV.addEventListener('touchstart', (e) => { e.preventDefault(); flap(); });
+
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  score = 0;
+  lives = 3;
+  streak = 0;
+  consecutiveCorrect = 0;
+  pipes = [];
+  particles = [];
+  popups = [];
+  bird.y = 200;
+  bird.vy = 0;
+  activePools = clonePools();
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('endOverlay').classList.remove('show');
+  document.getElementById('gateOverlay').classList.remove('show');
+  document.getElementById('gameWrap').style.display = 'flex';
+
+  updateHUD();
+  gameState = 'PLAYING';
+}
+
+function updateHUD() {
+  document.getElementById('hudScore').innerText = score;
+  document.getElementById('hudLives').innerText = '❤️'.repeat(Math.max(0, lives));
+}
+
+function spawnPipe() {
+  const gap = 140;
+  const minTop = 50;
+  const maxTop = CV.height - gap - 100;
+  const topHeight = Math.floor(Math.random() * (maxTop - minTop + 1)) + minTop;
+
+  pipes.push({ x: CV.width, top: topHeight, bottom: CV.height - topHeight - gap, passed: false });
+}
+
+function update() {
+  if (gameState !== 'PLAYING') return;
+
+  frame++;
+  bird.vy += bird.gravity;
+  bird.y += bird.vy;
+
+  if (frame % 90 === 0) spawnPipe();
+
+  for (let i = pipes.length - 1; i >= 0; i--) {
+    let p = pipes[i];
+    p.x -= 2.5;
+
+    // Colisión
+    if (bird.x + bird.size > p.x && bird.x - bird.size < p.x + 50) {
+      if (bird.y - bird.size < p.top || bird.y + bird.size > CV.height - p.bottom) {
+        handleCrash();
+        return;
+      }
+    }
+
+    // Puntos por obstáculo
+    if (!p.passed && p.x < bird.x) {
+      p.passed = true;
+      score += 1;
+      streak++;
+      updateHUD();
+      addParticles(bird.x, bird.y, '#facc15', 10);
+      addPopup('+1', bird.x + 20, bird.y - 10, '#facc15');
+      playSound(650, 'triangle', 0.1);
+    }
+
+    if (p.x < -60) pipes.splice(i, 1);
+  }
+
+  // Techo/Suelo
+  if (bird.y + bird.size >= CV.height - 20 || bird.y - bird.size <= 0) handleCrash();
+
+  // Actualizar partículas
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let pt = particles[i];
+    pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+
+  // Actualizar popups
+  for (let i = popups.length - 1; i >= 0; i--) {
+    let pop = popups[i];
+    pop.y += pop.vy; pop.opacity -= 0.02;
+    if (pop.opacity <= 0) popups.splice(i, 1);
+  }
+}
+
+function handleCrash() {
+  playSound(180, 'sawtooth', 0.25);
+  addParticles(bird.x, bird.y, '#ef4444', 15);
+  lives--;
+  updateHUD();
+  triggerQuestion();
+}
+
+function draw() {
+  ctx.fillStyle = '#0f0c29';
+  ctx.fillRect(0, 0, CV.width, CV.height);
+
+  // Tuberías
+  pipes.forEach(p => {
+    ctx.fillStyle = '#7c3aed';
+    ctx.fillRect(p.x, 0, 50, p.top);
+    ctx.fillRect(p.x, CV.height - p.bottom, 50, p.bottom);
+    
+    ctx.fillStyle = '#22d3ee';
+    ctx.fillRect(p.x - 2, p.top - 12, 54, 12);
+    ctx.fillRect(p.x - 2, CV.height - p.bottom, 54, 12);
+  });
+
+  // Suelo
+  ctx.fillStyle = '#1e1b4b';
+  ctx.fillRect(0, CV.height - 20, CV.width, 20);
+
+  // Dibujar Ave / Robot
+  ctx.font = '28px sans-serif';
+  ctx.fillText('🤖', bird.x - 14, bird.y + 10);
+
+  // Dibujar Partículas
+  particles.forEach(pt => {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+    ctx.fillStyle = pt.color;
+    ctx.fill();
+  });
+
+  // Dibujar Popups
+  popups.forEach(pop => {
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillStyle = pop.color;
+    ctx.globalAlpha = Math.max(0, pop.opacity);
+    ctx.fillText(pop.text, pop.x, pop.y);
+    ctx.globalAlpha = 1.0;
+  });
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+/* ===================== EVALUACIÓN DE PREGUNTAS ===================== */
+function triggerQuestion() {
+  let diff = 'dificil';
+  if (streak >= 4) diff = 'facil';
+  else if (streak >= 2) diff = 'media';
+
+  gameState = 'GATE';
+  let pool = activePools[diff];
+  if (!pool || pool.length === 0) {
+    activePools[diff] = JSON.parse(JSON.stringify(RAW_QUESTIONS[diff]));
+    pool = activePools[diff];
+  }
+
+  const qData = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+
+  const badge = document.getElementById('diffBadge');
+  badge.className = `diff-badge ${diff}`;
+  badge.innerText = diff === 'facil' ? '🟢 Pregunta Divertida' : diff === 'media' ? '🟡 Pregunta Intermedia' : '🔴 Pregunta Retadora';
+
+  document.getElementById('gateQuest').innerText = qData.q;
+  const optsContainer = document.getElementById('gateOpts');
+  optsContainer.innerHTML = '';
+  document.getElementById('gateResult').style.display = 'none';
+  document.getElementById('gateNext').style.display = 'none';
+
+  qData.o.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerText = opt.t;
+    btn.onclick = () => evaluateAnswer(opt.ok, btn, qData);
+    optsContainer.appendChild(btn);
+  });
+
+  document.getElementById('gateOverlay').classList.add('show');
+}
+
+function evaluateAnswer(isCorrect, btnClicked, qData) {
+  document.querySelectorAll('.opt').forEach(b => b.disabled = true);
+  const resultBox = document.getElementById('gateResult');
+  resultBox.style.display = 'block';
+
+  if (isCorrect) {
+    btnClicked.classList.add('correct');
+    score += 25;
+    consecutiveCorrect++;
+    playSound(850, 'sine', 0.2);
+
+    let extraMsg = "";
+    if (consecutiveCorrect === 2) {
+      lives++;
+      consecutiveCorrect = 0;
+      extraMsg = "<br><b style='color:var(--yellow); font-size:1rem;'>💖 ¡2 Aciertos Seguidos! ¡Ganas 1 Vida Extra!</b>";
+    }
+
+    resultBox.style.borderLeftColor = 'var(--green)';
+    resultBox.innerHTML = `<b style="color:var(--green)">¡Excelente Respuesta! +25 Puntos 🌟</b><br>${qData.whyOK}${extraMsg}`;
+  } else {
+    btnClicked.classList.add('wrong');
+    consecutiveCorrect = 0;
+    playSound(180, 'sawtooth', 0.3);
+
+    resultBox.style.borderLeftColor = 'var(--red)';
+    resultBox.innerHTML = `<b style="color:var(--red)">¡Casi lo logras! 💡</b><br>${qData.whyBAD}`;
+  }
+
+  updateHUD();
+  const nextBtn = document.getElementById('gateNext');
+  nextBtn.style.display = 'inline-block';
+  
+  if (lives <= 0) {
+    nextBtn.innerText = 'Ver Resultados ➔';
+    nextBtn.onclick = endGame;
+  } else {
+    nextBtn.innerText = 'Volver a Volar ➔';
+    nextBtn.onclick = () => {
+      document.getElementById('gateOverlay').classList.remove('show');
+      bird.y = 200; bird.vy = 0; pipes = []; streak = 0;
+      gameState = 'PLAYING';
+    };
+  }
+}
+
+function endGame() {
+  document.getElementById('gateOverlay').classList.remove('show');
+  gameState = 'END';
+  document.getElementById('endScore').innerText = score;
+  document.getElementById('endOverlay').classList.add('show');
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
